@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "promotion_codes",
+  "info": {
+    "singularName": "promotion-code",
+    "pluralName": "promotion-codes",
+    "displayName": "Promotion Code",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "code": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "discountPercentage": {
+      "type": "decimal",
+      "required": true
+    },
+    "validFrom": {
+      "type": "date"
+    },
+    "validUntil": {
+      "type": "date"
+    },
+    "users": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::auth.auth",
+      "inversedBy": "promotion_codes_used"
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

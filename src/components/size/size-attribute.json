@@ -1,0 +1,14 @@
+{
+  "collectionName": "components_size_size_attributes",
+  "info": {
+    "displayName": "sizeAttribute",
+    "icon": "ruler"
+  },
+  "options": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

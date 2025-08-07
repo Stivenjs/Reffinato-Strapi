@@ -1,0 +1,39 @@
+{
+  "kind": "collectionType",
+  "collectionName": "seasonal_promotions",
+  "info": {
+    "singularName": "seasonal-promotion",
+    "pluralName": "seasonal-promotions",
+    "displayName": "Seasonal Promotion",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "discountPercentage": {
+      "type": "decimal",
+      "required": true,
+      "min": 0,
+      "max": 100
+    },
+    "validFrom": {
+      "type": "datetime",
+      "required": true
+    },
+    "validUntil": {
+      "type": "datetime",
+      "required": true
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

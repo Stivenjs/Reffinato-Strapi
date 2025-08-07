@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "social_shops",
+  "info": {
+    "singularName": "social-shop",
+    "pluralName": "social-shops",
+    "displayName": "Social Shop"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": ["images"]
+    },
+    "caption": {
+      "type": "text",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "required": true,
+      "default": "REFFINATO"
+    },
+    "date": {
+      "type": "date",
+      "required": true
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "order": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}

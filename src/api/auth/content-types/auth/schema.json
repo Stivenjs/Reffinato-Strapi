@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "auths",
+  "info": {
+    "singularName": "auth",
+    "pluralName": "auths",
+    "displayName": "Auth"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "uid": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "email"
+    },
+    "profilePictureUrl": {
+      "type": "string"
+    },
+    "address": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::address.address",
+      "mappedBy": "user"
+    },
+    "cartItems": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::cart-item.cart-item",
+      "mappedBy": "user"
+    },
+    "promotion_codes_used": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::promotion-code.promotion-code",
+      "mappedBy": "users"
+    }
+  }
+}
