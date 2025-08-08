@@ -1,18 +1,4 @@
-import * as admin from "firebase-admin";
-import * as path from "path";
-
-const serviceAccount = require(
-  path.resolve(
-    process.cwd(),
-    "reffinato-dev-firebase-adminsdk-fbsvc-fa64e30373.json"
-  )
-);
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
+import admin from "../../../utils/firebase";
 
 export default async (policyContext, config, { strapi }) => {
   const { authorization } = policyContext.request.headers;
