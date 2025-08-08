@@ -1,13 +1,13 @@
 import admin from "../../../utils/firebase";
 
 export default async (ctx: any, config: any, { strapi }: any) => {
-  const token = ctx.request.header.authorization;
+  const { authorization } = ctx.request.headers;
 
-  if (!token || !token.startsWith("Bearer ")) {
+  if (!authorization || !authorization.startsWith("Bearer ")) {
     return ctx.unauthorized("Missing or invalid Authorization header");
   }
 
-  const idToken = token.split("Bearer ")[1];
+  const idToken = authorization.split("Bearer ")[1];
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);

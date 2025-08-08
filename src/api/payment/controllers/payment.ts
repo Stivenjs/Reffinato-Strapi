@@ -15,6 +15,10 @@ export default {
       ctx.request.body;
     const firebaseUid = ctx.state.user?.uid;
 
+    if (!firebaseUid) {
+      return ctx.unauthorized("Authentication required: missing Firebase UID.");
+    }
+
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
       return ctx.badRequest(
         "Cart items array is required and must not be empty."

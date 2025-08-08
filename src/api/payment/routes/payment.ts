@@ -5,6 +5,7 @@ module.exports = {
       path: "/payments/create-checkout-session",
       handler: "payment.createCheckoutSession",
       config: {
+        policies: ["api::payment.is-firebase-authenticated"],
         auth: false,
       },
     },
