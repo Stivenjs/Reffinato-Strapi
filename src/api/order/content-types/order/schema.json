@@ -1,0 +1,71 @@
+{
+  "kind": "collectionType",
+  "collectionName": "orders",
+  "info": {
+    "singularName": "order",
+    "pluralName": "orders",
+    "displayName": "Order"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::auth.auth"
+    },
+    "address": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::address.address"
+    },
+    "totalAmount": {
+      "type": "decimal",
+      "required": true
+    },
+    "currency": {
+      "type": "string",
+      "required": true
+    },
+    "stripeSessionId": {
+      "type": "string",
+      "unique": true,
+      "required": true
+    },
+    "orderItems": {
+      "type": "component",
+      "repeatable": true,
+      "component": "order.order-item"
+    },
+    "orderStatus": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "paid",
+        "processing",
+        "awaiting_shipment",
+        "shipped",
+        "out_for_delivery",
+        "delivered",
+        "canceled",
+        "refunded",
+        "failed",
+        "completed"
+      ],
+      "default": "pending"
+    },
+    "promotionCode": {
+      "type": "string"
+    },
+    "shippingAddress": {
+      "type": "json"
+    },
+    "shippingName": {
+      "type": "string"
+    },
+    "shippingAddressText": {
+      "type": "string"
+    }
+  }
+}

@@ -4,8 +4,8 @@ export default factories.createCoreController(
   "api::promotion-code.promotion-code" as any,
   ({ strapi }) => ({
     async applyPromotionCode(ctx) {
-      const { code } = ctx.request.body; 
-      const firebaseUid = ctx.state.user.uid; 
+      const { code } = ctx.request.body;
+      const firebaseUid = ctx.state.user.uid;
 
       if (!code) {
         return ctx.badRequest("Promotion code is required");
@@ -33,7 +33,7 @@ export default factories.createCoreController(
           "api::promotion-code.promotion-code" as any,
           {
             filters: { code: code },
-            populate: ["users"], 
+            populate: ["users"],
           }
         );
 
@@ -63,21 +63,8 @@ export default factories.createCoreController(
             "Promotion code has already been used by this user"
           );
         }
-
-        await strapi.entityService.update(
-          "api::promotion-code.promotion-code" as any,
-          promo.id,
-          {
-            data: {
-              users: {
-                connect: [{ id: userId }], 
-              } as any, 
-            },
-          }
-        );
-
         return ctx.send({
-          message: "Promotion code applied successfully",
+          message: "Promotion code validated",
           discountPercentage: promo.discountPercentage,
         });
       } catch (error) {

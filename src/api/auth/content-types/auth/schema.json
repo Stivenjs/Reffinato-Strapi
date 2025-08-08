@@ -20,6 +20,9 @@
     "email": {
       "type": "email"
     },
+    "phone": {
+      "type": "string"
+    },
     "profilePictureUrl": {
       "type": "string"
     },

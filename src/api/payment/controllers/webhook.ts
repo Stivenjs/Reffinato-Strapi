@@ -13,30 +13,19 @@ const stripe = new Stripe(stripeSecret, {
 
 export default {
   async handleStripeWebhook(ctx: any) {
-    // NO se necesita verificar la firma aquí, la Lambda ya lo hizo.
-    // El cuerpo de la solicitud ya debe ser un objeto JSON parseado por el middleware de Strapi.
-    const event = ctx.request.body; // El evento de Stripe ya viene parseado de la Lambda
+    const event = ctx.request.body;
 
-    // ¡Enviar la respuesta 200 OK inmediatamente a Stripe para evitar timeouts!
-    // Esta respuesta es para la Lambda, no para Stripe directamente.
     ctx.send({ received: true }, 200);
 
     if (!event || !event.type) {
-      console.log(
-        `[StripeWebhookController] Evento recibido es inválido o no tiene tipo.`
-      );
-      return; // Salir si el evento no es válido
+      return;
     }
 
-    // Procesar el evento de forma asíncrona después de enviar la respuesta a la Lambda
     switch (event.type) {
       case "checkout.session.completed":
         const session = event.data.object as Stripe.Checkout.Session;
 
-        console.log(`Checkout session completed: ${session.id}`);
-
         try {
-          // Recuperar la sesión completa con line_items y metadata
           const fullSession = await stripe.checkout.sessions.retrieve(
             session.id,
             {
@@ -45,17 +34,28 @@ export default {
           );
 
           const lineItems = fullSession.line_items?.data;
-          const firebaseUid = fullSession.metadata?.firebaseUid; // Recuperar UID del metadata
-          const promotionCodeUsed = fullSession.metadata?.promotionCode; // Recuperar promotionCode del metadata
-
-          if (!firebaseUid) {
-            console.log(
-              `Checkout session ${session.id} completed, but no firebaseUid found in metadata.`
-            );
-            return; // Salir si falta información crítica
+          const firebaseUid = fullSession.metadata?.firebaseUid;
+          const promotionCodeUsed = fullSession.metadata?.promotionCode;
+          const itemsMetaRaw = (fullSession.metadata as any)?.items;
+          let itemsMeta: Array<{
+            productId: number;
+            quantity: number;
+            unitPrice: number;
+            size?: string;
+            color?: string;
+          }> = [];
+          if (itemsMetaRaw) {
+            try {
+              itemsMeta = JSON.parse(itemsMetaRaw);
+            } catch (_) {
+              itemsMeta = [];
+            }
           }
 
-          // 1. Buscar el usuario en Strapi
+          if (!firebaseUid) {
+            return;
+          }
+
           const strapiUsers = await strapi.entityService.findMany(
             "api::auth.auth" as any,
             {
@@ -64,58 +64,51 @@ export default {
           );
 
           if (!strapiUsers || strapiUsers.length === 0) {
-            console.log(
-              `User with firebaseUid ${firebaseUid} not found in Strapi.`
-            );
-            return; // Salir si el usuario no se encuentra
+            return;
           }
 
           const strapiUser = strapiUsers[0];
           const userId = strapiUser.id;
 
-          // 2. Buscar la dirección registrada del usuario (asumiendo un Content Type 'address' relacionado con 'auth')
-          const userAddresses = await strapi.entityService.findMany(
-            "api::address.address" as any, // Reemplaza con el nombre de tu Content Type de direcciones
-            {
-              filters: { user: userId },
-            }
-          );
+          const shippingDetails = (session as any).collected_information
+            ?.shipping_details || {
+            address: (session as any).customer_details?.address,
+            name: (session as any).customer_details?.name,
+          };
 
-          if (!userAddresses || userAddresses.length === 0) {
-            console.log(
-              `No address found for user ${userId}. Order cannot be created.`
-            );
-            return; // Salir si no hay dirección
+          let orderItems: any[] = [];
+          if (itemsMeta.length > 0) {
+            orderItems = itemsMeta.map((it) => ({
+              product: it.productId,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+              size: it.size || "",
+              color: it.color || "",
+            }));
+          } else {
+            orderItems = lineItems?.map((item: any) => ({
+              quantity: item.quantity,
+              unitPrice: item.price.unit_amount / 100,
+              size: item.price.product?.metadata?.size || "",
+              color: item.price.product?.metadata?.color || "",
+            })) as any[];
           }
 
-          const userAddress = userAddresses[0]; // Tomar la primera dirección encontrada
-
-          // 3. Crear el pedido en Strapi
-          const orderItems = lineItems?.map((item: any) => ({
-            productName: item.description,
-            quantity: item.quantity,
-            price: item.price.unit_amount / 100,
-          }));
-
-          // Obtener información de envío de la sesión de Stripe
-          const shippingAddress =
-            "shipping" in session ? (session as any).shipping?.address : null;
-          const shippingName =
-            "shipping" in session ? (session as any).shipping?.name : null;
+          const shippingAddress = shippingDetails?.address || null;
+          const shippingName = shippingDetails?.name || null;
 
           const newOrder = await strapi.entityService.create(
-            "api::order.order" as any, // Reemplaza con el nombre de tu Content Type de pedidos
+            "api::order.order" as any,
             {
               data: {
                 user: userId,
-                address: userAddress.id,
+                address: null,
                 totalAmount: session.amount_total! / 100,
                 currency: session.currency,
                 stripeSessionId: session.id,
                 orderItems: orderItems,
-                status: "completed",
+                orderStatus: "paid",
                 promotionCode: promotionCodeUsed,
-                // Información de envío de Stripe
                 shippingAddress: shippingAddress
                   ? {
                       line1: shippingAddress.line1,
@@ -127,15 +120,45 @@ export default {
                     }
                   : null,
                 shippingName: shippingName || null,
+                shippingAddressText: [
+                  shippingName || null,
+                  [shippingAddress?.line1, shippingAddress?.line2]
+                    .filter(Boolean)
+                    .join(", "),
+                  [
+                    shippingAddress?.city,
+                    shippingAddress?.state,
+                    shippingAddress?.postal_code,
+                  ]
+                    .filter(Boolean)
+                    .join(", "),
+                  shippingAddress?.country || null,
+                ]
+                  .filter((p) => p && String(p).trim().length > 0)
+                  .join(" · "),
               } as any,
             }
           );
 
-          console.log(
-            `Order ${newOrder.id} created successfully for user ${userId}.`
-          );
+          const customerEmail = (session as any).customer_details?.email;
+          const customerPhone = (session as any).customer_details?.phone;
+          const updates: any = {};
+          if (customerEmail) updates.email = customerEmail;
+          if (customerPhone) updates.phone = customerPhone;
+          if (Object.keys(updates).length > 0) {
+            try {
+              await strapi.entityService.update(
+                "api::auth.auth" as any,
+                userId,
+                { data: updates }
+              );
+            } catch (e) {
+              strapi.log.warn(
+                `Could not update user contact from Stripe: ${e.message}`
+              );
+            }
+          }
 
-          // 4. Marcar el código de promoción como usado (si se usó)
           if (promotionCodeUsed) {
             const promoCodesToUpdate = await strapi.entityService.findMany(
               "api::promotion-code.promotion-code" as any,
@@ -158,24 +181,15 @@ export default {
                   } as any,
                 }
               );
-              console.log(
-                `Promotion code ${promotionCodeUsed} marked as used by user ${userId}.`
-              );
             }
           }
-        } catch (processError: any) {
-          console.log(
-            `Error processing checkout.session.completed for session ${session.id}: ${processError.message}`
-          );
-          // En un entorno de producción, podrías querer reintentar el procesamiento o alertar a un administrador.
-        }
+        } catch (processError: any) {}
         break;
       case "payment_intent.succeeded":
         const paymentIntent = event.data.object;
-        console.log(`PaymentIntent was successful! ${paymentIntent.id}`);
         break;
       default:
-        console.log(`Unhandled event type ${event.type}`);
+        break;
     }
   },
 };

@@ -58,6 +58,11 @@ export default {
                 item.product.photos && item.product.photos.length > 0
                   ? [item.product.photos[0].url]
                   : [],
+              metadata: {
+                productId: item.product.id,
+                size: item.size || "",
+                color: item.color || "",
+              },
             },
             unit_amount: Math.round(unitPrice * 100),
           },
@@ -71,8 +76,7 @@ export default {
         mode: "payment",
         success_url: successUrl,
         cancel_url: cancelUrl,
-
-        // Configurar recolección de información de envío
+        phone_number_collection: { enabled: true },
         shipping_address_collection: {
           allowed_countries: [
             "US",
@@ -97,7 +101,7 @@ export default {
         // customer_email: ctx.state.user?.email, // Opcional: email del cliente si disponible
       };
 
-      // Lógica para aplicar el código de promoción (si se proporciona)
+      // Lógica para validar el código de promoción (si se proporciona)
       if (promotionCode) {
         // Buscar el código de promoción en Strapi
         const promoCodes = await strapi.entityService.findMany(
@@ -123,33 +127,8 @@ export default {
             throw new Error("Promotion code has expired.");
           }
 
-          // Validar uso único por usuario (si el usuario está autenticado)
-          if (firebaseUid) {
-            const strapiUser = await strapi.entityService.findMany(
-              "api::auth.auth" as any,
-              {
-                filters: { uid: firebaseUid },
-              }
-            );
-            if (strapiUser && strapiUser.length > 0) {
-              const userId = strapiUser[0].id;
-              const hasUserUsedCode = promo.users.some(
-                (user: any) => user.id === userId
-              );
-              if (hasUserUsedCode) {
-                throw new Error(
-                  "Promotion code has already been used by this user."
-                );
-              }
-              // Guardar el ID del código de promoción de Strapi si se valida correctamente
-              currentPromotionCodeId = promo.id;
-            } else {
-              // Si no se encuentra el usuario de Strapi pero hay firebaseUid, considerar como un error o no aplicar el descuento.
-              strapi.log.warn(
-                `Firebase UID ${firebaseUid} provided but no matching Strapi user found.`
-              );
-            }
-          }
+          // No marcar ni rechazar aquí por uso previo; el marcado se hará en el webhook al completar el pago
+          currentPromotionCodeId = promo.id;
 
           promotionDiscountPercentage = promo.discountPercentage;
         }
@@ -188,6 +167,27 @@ export default {
         if (couponId) {
           sessionConfig.discounts = [{ coupon: couponId }];
         }
+      }
+
+      // Adjuntar metadata compacta de los items para reconstruir la orden en el webhook
+      try {
+        const itemsMeta = cartItems.map((item: any) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          unitPrice:
+            item.product.discountPrice !== null &&
+            item.product.discountPrice < item.product.price
+              ? item.product.discountPrice
+              : item.product.price,
+          size: item.size || "",
+          color: item.color || "",
+        }));
+        // Stripe metadata valores son strings
+        (sessionConfig.metadata as any).items = JSON.stringify(itemsMeta);
+      } catch (metaErr) {
+        strapi.log.warn(
+          `Could not serialize items metadata for Checkout Session: ${metaErr.message}`
+        );
       }
 
       const session = await stripe.checkout.sessions.create(sessionConfig);

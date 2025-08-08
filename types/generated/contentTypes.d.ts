@@ -437,6 +437,7 @@ export interface ApiAuthAuth extends Struct.CollectionTypeSchema {
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::auth.auth'> &
       Schema.Attribute.Private;
     name: Schema.Attribute.String;
+    phone: Schema.Attribute.String;
     profilePictureUrl: Schema.Attribute.String;
     promotion_codes_used: Schema.Attribute.Relation<
       'manyToMany',
@@ -522,6 +523,58 @@ export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
+  collectionName: 'orders';
+  info: {
+    displayName: 'Order';
+    pluralName: 'orders';
+    singularName: 'order';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    address: Schema.Attribute.Relation<'manyToOne', 'api::address.address'>;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    currency: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::order.order'> &
+      Schema.Attribute.Private;
+    orderItems: Schema.Attribute.Component<'order.order-item', true>;
+    orderStatus: Schema.Attribute.Enumeration<
+      [
+        'pending',
+        'paid',
+        'processing',
+        'awaiting_shipment',
+        'shipped',
+        'out_for_delivery',
+        'delivered',
+        'canceled',
+        'refunded',
+        'failed',
+        'completed',
+      ]
+    > &
+      Schema.Attribute.DefaultTo<'pending'>;
+    promotionCode: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    shippingAddress: Schema.Attribute.JSON;
+    shippingAddressText: Schema.Attribute.String;
+    shippingName: Schema.Attribute.String;
+    stripeSessionId: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    totalAmount: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<'manyToOne', 'api::auth.auth'>;
   };
 }
 
@@ -1228,6 +1281,7 @@ declare module '@strapi/strapi' {
       'api::auth.auth': ApiAuthAuth;
       'api::cart-item.cart-item': ApiCartItemCartItem;
       'api::category.category': ApiCategoryCategory;
+      'api::order.order': ApiOrderOrder;
       'api::product.product': ApiProductProduct;
       'api::promotion-code.promotion-code': ApiPromotionCodePromotionCode;
       'api::seasonal-promotion.seasonal-promotion': ApiSeasonalPromotionSeasonalPromotion;
