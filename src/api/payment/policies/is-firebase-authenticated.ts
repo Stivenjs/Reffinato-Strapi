@@ -1,10 +1,13 @@
 import admin from "../../../utils/firebase";
+import { errors } from "@strapi/utils";
+
+const { UnauthorizedError } = errors as any;
 
 export default async (policyContext, config, { strapi }) => {
-  const { authorization } = policyContext.request.headers;
+  const { authorization } = policyContext.request.headers || {};
 
   if (!authorization || !authorization.startsWith("Bearer ")) {
-    return policyContext.unauthorized("No token provided or invalid format");
+    throw new UnauthorizedError("No token provided or invalid format");
   }
 
   const idToken = authorization.split("Bearer ")[1];
@@ -15,6 +18,6 @@ export default async (policyContext, config, { strapi }) => {
     return true;
   } catch (error) {
     strapi.log.error("Error verifying Firebase token:", error.message);
-    return policyContext.unauthorized("Invalid or expired Firebase token");
+    throw new UnauthorizedError("Invalid or expired Firebase token");
   }
 };

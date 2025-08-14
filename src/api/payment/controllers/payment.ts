@@ -212,4 +212,92 @@ export default {
       );
     }
   },
+
+  async createSubscriptionSession(ctx: any) {
+    const { successUrl, cancelUrl, priceId } = ctx.request.body;
+    const firebaseUid = ctx.state.user?.uid;
+
+    if (!successUrl || !cancelUrl) {
+      return ctx.badRequest("successUrl and cancelUrl are required.");
+    }
+
+    const defaultPriceId = process.env.STRIPE_SUBSCRIPTION_PRICE_ID;
+    const finalPriceId = priceId || defaultPriceId;
+    if (!finalPriceId) {
+      return ctx.badRequest(
+        "Missing priceId. Define STRIPE_SUBSCRIPTION_PRICE_ID or send priceId in body."
+      );
+    }
+
+    try {
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        line_items: [
+          {
+            price: finalPriceId,
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          firebaseUid: firebaseUid || "guest",
+          membershipTier: "gold",
+        },
+        allow_promotion_codes: false,
+      });
+
+      return ctx.send({ id: session.id, url: session.url });
+    } catch (error: any) {
+      strapi.log.error(
+        `Error creating Stripe Subscription Session: ${error.message}`
+      );
+      return ctx.internalServerError("Could not create subscription session.");
+    }
+  },
+
+  async createCustomerPortalSession(ctx: any) {
+    try {
+      const { returnUrl } = ctx.request.body || {};
+      const firebaseUid = ctx.state.user?.uid;
+      if (!firebaseUid) {
+        return ctx.unauthorized(
+          "Authentication required: missing Firebase UID."
+        );
+      }
+
+      // Buscar membership del usuario para obtener el customerId de Stripe
+      const users = await strapi.entityService.findMany(
+        "api::auth.auth" as any,
+        { filters: { uid: firebaseUid } }
+      );
+      if (!users || users.length === 0) {
+        return ctx.notFound("User not found");
+      }
+      const userId = users[0].id;
+
+      const memberships = await strapi.entityService.findMany(
+        "api::membership.membership" as any,
+        { filters: { user: userId } }
+      );
+      if (!memberships || memberships.length === 0) {
+        return ctx.badRequest("No membership found for user");
+      }
+
+      const stripeCustomerId = memberships[0].stripeCustomerId;
+      if (!stripeCustomerId) {
+        return ctx.badRequest("Missing Stripe customer id in membership");
+      }
+
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: returnUrl || `${ctx.request.origin || ""}`,
+      });
+
+      return ctx.send({ url: portalSession.url });
+    } catch (err: any) {
+      strapi.log.error(`Error creating portal session: ${err.message}`);
+      return ctx.internalServerError("Could not create portal session");
+    }
+  },
 };

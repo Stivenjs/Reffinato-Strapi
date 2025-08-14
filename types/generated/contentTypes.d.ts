@@ -526,6 +526,44 @@ export interface ApiCategoryCategory extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiMembershipMembership extends Struct.CollectionTypeSchema {
+  collectionName: 'memberships';
+  info: {
+    displayName: 'Membership';
+    pluralName: 'memberships';
+    singularName: 'membership';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    discountPercent: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<25>;
+    expiresAt: Schema.Attribute.DateTime;
+    freeShipping: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    isActive: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::membership.membership'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    startedAt: Schema.Attribute.DateTime;
+    stripeCustomerId: Schema.Attribute.String;
+    stripeSubscriptionId: Schema.Attribute.String;
+    tier: Schema.Attribute.Enumeration<['gold']> &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'gold'>;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<'oneToOne', 'api::auth.auth'>;
+  };
+}
+
 export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   collectionName: 'orders';
   info: {
@@ -1281,6 +1319,7 @@ declare module '@strapi/strapi' {
       'api::auth.auth': ApiAuthAuth;
       'api::cart-item.cart-item': ApiCartItemCartItem;
       'api::category.category': ApiCategoryCategory;
+      'api::membership.membership': ApiMembershipMembership;
       'api::order.order': ApiOrderOrder;
       'api::product.product': ApiProductProduct;
       'api::promotion-code.promotion-code': ApiPromotionCodePromotionCode;

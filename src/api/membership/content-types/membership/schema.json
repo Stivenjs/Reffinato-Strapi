@@ -1,0 +1,50 @@
+{
+  "kind": "collectionType",
+  "collectionName": "memberships",
+  "info": {
+    "singularName": "membership",
+    "pluralName": "memberships",
+    "displayName": "Membership"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::auth.auth"
+    },
+    "tier": {
+      "type": "enumeration",
+      "enum": ["gold"],
+      "default": "gold",
+      "required": true
+    },
+    "isActive": {
+      "type": "boolean",
+      "default": true
+    },
+    "discountPercent": {
+      "type": "decimal",
+      "default": 25
+    },
+    "freeShipping": {
+      "type": "boolean",
+      "default": true
+    },
+    "stripeCustomerId": {
+      "type": "string"
+    },
+    "stripeSubscriptionId": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "datetime"
+    },
+    "expiresAt": {
+      "type": "datetime"
+    }
+  }
+}

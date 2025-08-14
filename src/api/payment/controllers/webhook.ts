@@ -183,8 +183,101 @@ export default {
               );
             }
           }
+
+          // Sync membership for subscription checkouts
+          if (fullSession.mode === "subscription" && fullSession.subscription) {
+            try {
+              const subscription: any = await stripe.subscriptions.retrieve(
+                fullSession.subscription as string
+              );
+              const stripeCustomerId =
+                typeof subscription.customer === "string"
+                  ? subscription.customer
+                  : subscription.customer?.id;
+              const periodEndSeconds = subscription.current_period_end;
+              const expiresAtIso =
+                typeof periodEndSeconds === "number"
+                  ? new Date(periodEndSeconds * 1000).toISOString()
+                  : null;
+
+              const tier = fullSession.metadata?.membershipTier || "gold";
+
+              const existingMemberships = await strapi.entityService.findMany(
+                "api::membership.membership" as any,
+                { filters: { user: userId } }
+              );
+
+              const membershipData: any = {
+                user: userId,
+                tier,
+                isActive: true,
+                discountPercent: 25,
+                freeShipping: true,
+                stripeCustomerId,
+                stripeSubscriptionId: fullSession.subscription as string,
+                startedAt: new Date().toISOString(),
+                expiresAt: expiresAtIso,
+              };
+
+              if (existingMemberships && existingMemberships.length > 0) {
+                await strapi.entityService.update(
+                  "api::membership.membership" as any,
+                  existingMemberships[0].id,
+                  { data: membershipData }
+                );
+              } else {
+                await strapi.entityService.create(
+                  "api::membership.membership" as any,
+                  { data: membershipData }
+                );
+              }
+            } catch (membershipErr: any) {
+              strapi.log.warn(
+                `Could not sync membership from checkout.session.completed: ${membershipErr.message}`
+              );
+            }
+          }
         } catch (processError: any) {}
         break;
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        try {
+          const sub: any = event.data.object;
+          if (!sub?.id) break;
+          const stripeSubscriptionId = sub.id;
+          const stripeCustomerId =
+            typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+          const isActive = sub.status === "active" || sub.status === "trialing";
+          const expiresAtIso =
+            typeof sub.current_period_end === "number"
+              ? new Date(sub.current_period_end * 1000).toISOString()
+              : null;
+
+          const memberships = await strapi.entityService.findMany(
+            "api::membership.membership" as any,
+            { filters: { stripeSubscriptionId } }
+          );
+          if (memberships && memberships.length > 0) {
+            await strapi.entityService.update(
+              "api::membership.membership" as any,
+              memberships[0].id,
+              {
+                data: {
+                  isActive,
+                  stripeCustomerId,
+                  expiresAt: expiresAtIso,
+                } as any,
+              }
+            );
+          }
+        } catch (subErr: any) {
+          strapi.log.warn(
+            `Could not update membership from subscription event: ${subErr.message}`
+          );
+        }
+        break;
+      }
       case "payment_intent.succeeded":
         const paymentIntent = event.data.object;
         break;
